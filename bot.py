@@ -172,7 +172,6 @@ async def admin_handler(message: Message):
         await message.answer("⛔️ Accès refusé. Cette commande est réservée à l’administrateur.")
         return
 
-    bot = message.bot
     classement = []
 
     for parrain_id, filleuls in referrals.items():
