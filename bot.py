@@ -53,6 +53,17 @@ async def start_handler(message: Message):
                     referrals[str(referrer_id)].append(user_id)
                     with open(REFERRALS_FILE, "w") as f:
                         json.dump(referrals, f, indent=2)
+
+                    # 🎉 Notifier le parrain
+                    try:
+                        filleul_name = message.from_user.first_name
+                        await bot.send_message(
+                            referrer_id,
+                            f"🎉 <b>Nouveau filleul !</b>\n{filleul_name} s’est inscrit via ton lien.",
+                            parse_mode="HTML"
+                        )
+                    except Exception as e:
+                        print(f"[⚠️] Notification au parrain échouée : {e}")
         except:
             pass
 
@@ -91,6 +102,7 @@ async def start_handler(message: Message):
         f"/start – Revenir à ce message",
         parse_mode="HTML"
     )
+
 
 # === Commande /stats ===
 @router.message(Command("stats"))
