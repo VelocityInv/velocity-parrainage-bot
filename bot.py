@@ -160,19 +160,25 @@ async def main():
     app = web.Application()
     app.router.add_post(f"/webhook/{WEBHOOK_SECRET}", handle)
 
-    # Supprime le polling
+    # Supprime le webhook existant si besoin
     await bot.delete_webhook()
-    
-    # Ajoute le webhook
+
+    # Ajoute le nouveau webhook basé sur Render
     webhook_url = f"{RENDER_EXTERNAL_URL}/webhook/{WEBHOOK_SECRET}"
     await bot.set_webhook(webhook_url)
 
     runner = web.AppRunner(app)
     await runner.setup()
+
+    # 🔧 Important : host="0.0.0.0" + port dynamique
     site = web.TCPSite(runner, host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
     await site.start()
 
     print(f"🚀 Webhook lancé sur {webhook_url}")
+
+    # 🔒 Garde le serveur vivant pour Render
+    import asyncio
+    await asyncio.Event().wait()
 
 if __name__ == "__main__":
     import asyncio
