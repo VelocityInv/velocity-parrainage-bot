@@ -42,6 +42,7 @@ async def start_handler(message: Message):
     user_id = message.from_user.id
     args = message.text.split(" ")
     referrer_id = None
+    nouvelle_inscription = False
 
     if len(args) > 1:
         try:
@@ -51,19 +52,9 @@ async def start_handler(message: Message):
                     referrals[str(referrer_id)] = []
                 if user_id not in referrals[str(referrer_id)]:
                     referrals[str(referrer_id)].append(user_id)
+                    nouvelle_inscription = True  # Marquer que c’est une nouvelle inscription
                     with open(REFERRALS_FILE, "w") as f:
                         json.dump(referrals, f, indent=2)
-
-                    # 🎉 Notifier le parrain
-                    try:
-                        filleul_name = message.from_user.first_name
-                        await bot.send_message(
-                            referrer_id,
-                            f"🎉 <b>Nouveau filleul !</b>\n{filleul_name} s’est inscrit via ton lien.",
-                            parse_mode="HTML"
-                        )
-                    except Exception as e:
-                        print(f"[⚠️] Notification au parrain échouée : {e}")
         except:
             pass
 
@@ -71,6 +62,18 @@ async def start_handler(message: Message):
     referral_link = f"https://t.me/{bot_username}?start={user_id}"
     canal_url = "https://t.me/VelocityInvestments"
     first_name = message.from_user.first_name
+
+    # 🎉 Si nouvelle inscription, notifier le parrain
+    if nouvelle_inscription and referrer_id:
+        try:
+            filleul_name = message.from_user.first_name
+            await bot.send_message(
+                referrer_id,
+                f"🎉 <b>Nouveau filleul !</b>\n{filleul_name} s’est inscrit via ton lien.",
+                parse_mode="HTML"
+            )
+        except Exception as e:
+            print(f"[⚠️] Échec de notification du parrain {referrer_id} : {e}")
 
     # 🧠 Calcul du classement
     classement = []
@@ -102,7 +105,6 @@ async def start_handler(message: Message):
         f"/start – Revenir à ce message",
         parse_mode="HTML"
     )
-
 
 # === Commande /stats ===
 @router.message(Command("stats"))
