@@ -61,16 +61,36 @@ async def start_handler(message: Message):
     canal_url = "https://t.me/VelocityInvestments"
     first_name = message.from_user.first_name
 
+    # 🧠 Calcul du classement
+    classement = []
+    for parrain_id, filleuls in referrals.items():
+        actifs = 0
+        for fid in filleuls:
+            try:
+                status = await bot.get_chat_member(CANAL_ID, fid)
+                if status.status in ["member", "administrator", "creator"]:
+                    actifs += 1
+            except:
+                pass
+        classement.append((parrain_id, actifs))
+
+    classement.sort(key=lambda x: x[1], reverse=True)
+    position = next((i + 1 for i, (pid, _) in enumerate(classement) if pid == str(user_id)), "Non classé")
+
     await message.answer(
         f"👋 Bienvenue <b>{first_name}</b> !\n\n"
-        f"👉 Rejoins le canal Telegram pour valider ton parrainage :\n"
+        f"👉 Pour valider ton parrainage, rejoins le canal Telegram officiel :\n"
         f"📲 <a href='{canal_url}'>{canal_url}</a>\n\n"
-        f"Voici ton lien de parrainage 👇\n"
+        f"🎯 <b>Voici ton lien de parrainage à partager :</b>\n"
         f"<code>{referral_link}</code>\n\n"
+        f"🏆 <b>Ton classement actuel :</b> <b>#{position}</b>\n"
+        f"📈 Plus tu parraines, plus tu montes dans le top !\n\n"
+        f"🔧 <b>Commandes utiles :</b>\n"
         f"/stats – Voir tes parrainages\n"
-        f"/top – Classement des parrains"
+        f"/top – Classement des parrains\n"
+        f"/start – Revenir à ce message",
+        parse_mode="HTML"
     )
-
 
 # === Commande /stats ===
 @router.message(Command("stats"))
