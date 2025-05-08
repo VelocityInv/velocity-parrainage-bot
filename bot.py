@@ -164,6 +164,45 @@ async def top_handler(message: Message):
 
     await message.answer(message_text)
 
+@router.message(Command("admin"))
+async def admin_handler(message: Message):
+    ADMIN_ID = 1091214687  # Ton ID perso
+
+    if message.from_user.id != ADMIN_ID:
+        await message.answer("⛔️ Accès refusé. Cette commande est réservée à l’administrateur.")
+        return
+
+    bot = message.bot
+    classement = []
+
+    for parrain_id, filleuls in referrals.items():
+        actifs = 0
+        for fid in filleuls:
+            try:
+                status = await bot.get_chat_member(CANAL_ID, fid)
+                if status.status in ["member", "administrator", "creator"]:
+                    actifs += 1
+            except:
+                pass
+        classement.append((parrain_id, actifs))
+
+    classement.sort(key=lambda x: x[1], reverse=True)
+
+    if not classement:
+        await message.answer("Aucun parrain trouvé.")
+        return
+
+    message_text = "📋 <b>Liste des parrains (filleuls actifs)</b>\n\n"
+    for i, (pid, actifs) in enumerate(classement, start=1):
+        try:
+            user = await bot.get_chat_member(message.chat.id, int(pid))
+            name = user.user.first_name
+        except:
+            name = f"ID {pid}"
+        message_text += f"{i}. {name} – <b>{actifs}</b> actifs\n"
+
+    await message.answer(message_text, parse_mode="HTML")
+
 # === Serveur aiohttp pour Render ===
 async def handle(request):
     raw_body = await request.read()
