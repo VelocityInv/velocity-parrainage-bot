@@ -2,28 +2,31 @@ import os
 import json
 import logging
 from dotenv import load_dotenv
+from aiohttp import web
+
 from aiogram import Bot, Dispatcher, Router, types
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command, CommandStart
 from aiogram.client.default import DefaultBotProperties
 
-# Charger les variables d'environnement depuis token.env
+# === Chargement .env ===
 load_dotenv("token.env")
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-CANAL_ID = os.getenv("CANAL_ID")  # Exemple : @VelocityInvestments
+CANAL_ID = os.getenv("CANAL_ID")
+WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", "secret")
+RENDER_EXTERNAL_URL = os.getenv("RENDER_EXTERNAL_URL")
 
-# Configuration du logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-# Initialisation du router
+# === Initialisation ===
 router = Router()
+storage = MemoryStorage()
+dp = Dispatcher(storage=storage)
+dp.include_router(router)
 
-# Fichier de stockage des parrainages
+bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode="HTML"))
+
+# === Fichier de parrainage ===
 REFERRALS_FILE = "referrals.json"
-
-# Charger les données existantes
 if os.path.exists(REFERRALS_FILE):
     with open(REFERRALS_FILE, "r") as f:
         try:
@@ -33,7 +36,7 @@ if os.path.exists(REFERRALS_FILE):
 else:
     referrals = {}
 
-# Commande /start
+# === Commande /start ===
 @router.message(CommandStart())
 async def start_handler(message: Message):
     user_id = message.from_user.id
@@ -48,19 +51,16 @@ async def start_handler(message: Message):
                     referrals[str(referrer_id)] = []
                 if user_id not in referrals[str(referrer_id)]:
                     referrals[str(referrer_id)].append(user_id)
-
-                    # Sauvegarde
                     with open(REFERRALS_FILE, "w") as f:
                         json.dump(referrals, f, indent=2)
         except:
             pass
 
-    bot_username = (await message.bot.get_me()).username
+    bot_username = (await bot.get_me()).username
     referral_link = f"https://t.me/{bot_username}?start={user_id}"
     canal_url = "https://t.me/VelocityInvestments"
     first_name = message.from_user.first_name
 
-    # Bouton WebApp (optionnel)
     webapp_url = "https://velocity-parrainage.onrender.com"
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🚀 Ouvrir l'application", web_app={"url": webapp_url})]
@@ -70,18 +70,14 @@ async def start_handler(message: Message):
         f"👋 Bienvenue <b>{first_name}</b> !\n\n"
         f"👉 Rejoins le canal Telegram pour valider ton parrainage :\n"
         f"📲 <a href='{canal_url}'>{canal_url}</a>\n\n"
-        f"Voici également ton lien de parrainage unique 👇\n"
+        f"Voici ton lien de parrainage 👇\n"
         f"<code>{referral_link}</code>\n\n"
-        f"📌 <b>Liste des commandes disponibles :</b>\n"
-        f"/start – Revenir à ce message\n"
-        f"/stats – Voir combien de personnes tu as parrainées\n"
-        f"/top – Classement des parrains\n",
-        parse_mode="HTML",
-        disable_web_page_preview=True,
+        f"/stats – Voir tes parrainages\n"
+        f"/top – Classement des parrains",
         reply_markup=keyboard
     )
 
-# Commande /stats
+# === Commande /stats ===
 @router.message(Command("stats"))
 async def stats_handler(message: Message):
     user_id = str(message.from_user.id)
@@ -91,7 +87,6 @@ async def stats_handler(message: Message):
         await message.answer("Tu n’as encore parrainé personne.")
         return
 
-    bot = message.bot
     actifs = 0
     for fid in filleuls:
         try:
@@ -118,18 +113,15 @@ async def stats_handler(message: Message):
 
     await message.answer(
         f"📊 <b>Statistiques de parrainage</b> :\n\n"
-        f"👥 Parrainés au total : <b>{len(filleuls)}</b>\n"
-        f"✅ Encore abonnés au canal : <b>{actifs}</b>\n"
-        f"🏆 Ta position dans le classement : <b>#{position}</b>",
-        parse_mode="HTML"
+        f"👥 Parrainés : <b>{len(filleuls)}</b>\n"
+        f"✅ Toujours abonnés : <b>{actifs}</b>\n"
+        f"🏆 Position : <b>#{position}</b>"
     )
 
-# Commande /top
+# === Commande /top ===
 @router.message(Command("top"))
 async def top_handler(message: Message):
-    bot = message.bot
     classement = []
-
     for parrain_id, filleuls in referrals.items():
         actifs = 0
         for fid in filleuls:
@@ -142,31 +134,47 @@ async def top_handler(message: Message):
         classement.append((parrain_id, actifs))
 
     classement.sort(key=lambda x: x[1], reverse=True)
-
     if not classement or all(actifs == 0 for _, actifs in classement):
         await message.answer("Aucun parrain actif pour le moment.")
         return
 
-    message_text = "🏆 <b>Top 5 Parrains - Filleuls actifs</b>\n\n"
-    top_limit = min(5, len(classement))
-    for i in range(top_limit):
-        parrain_id, actifs = classement[i]
+    message_text = "🏆 <b>Top 5 Parrains</b>\n\n"
+    for i, (parrain_id, actifs) in enumerate(classement[:5]):
         try:
             user = await bot.get_chat_member(chat_id=message.chat.id, user_id=int(parrain_id))
             name = user.user.first_name
         except:
             name = f"ID {parrain_id}"
-        message_text += f"{i + 1}. {name} – <b>{actifs}</b> actifs\n"
+        message_text += f"{i+1}. {name} – <b>{actifs}</b> actifs\n"
 
-    await message.answer(message_text, parse_mode="HTML")
+    await message.answer(message_text)
 
-# Lancement du bot
+# === Serveur aiohttp pour Render ===
+async def handle(request):
+    raw_body = await request.read()
+    update = types.Update.model_validate_json(raw_body.decode())
+    await dp.feed_update(bot, update)
+    return web.Response()
+
 async def main():
-    bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode="HTML"))
-    dp = Dispatcher(storage=MemoryStorage())
-    dp.include_router(router)
-    await dp.start_polling(bot)
+    app = web.Application()
+    app.router.add_post(f"/webhook/{WEBHOOK_SECRET}", handle)
+
+    # Supprime le polling
+    await bot.delete_webhook()
+    
+    # Ajoute le webhook
+    webhook_url = f"{RENDER_EXTERNAL_URL}/webhook/{WEBHOOK_SECRET}"
+    await bot.set_webhook(webhook_url)
+
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, port=10000)
+    await site.start()
+
+    print(f"🚀 Webhook lancé sur {webhook_url}")
 
 if __name__ == "__main__":
     import asyncio
     asyncio.run(main())
+
