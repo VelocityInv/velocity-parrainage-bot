@@ -216,6 +216,23 @@ async def admin_handler(message: Message):
 
     await message.answer(message_text, parse_mode="HTML")
 
+@router.message(Command("testnotif"))
+async def test_notif_handler(message: Message):
+    ADMIN_ID = 1091214687  # Ton ID Telegram
+    if message.from_user.id != ADMIN_ID:
+        await message.answer("⛔️ Commande réservée à l'administrateur.")
+        return
+
+    try:
+        await bot.send_message(
+            ADMIN_ID,
+            "🎉 <b>Nouveau filleul !</b>\nJohn Doe s’est inscrit via ton lien.",
+            parse_mode="HTML"
+        )
+        await message.answer("✅ Notification test envoyée avec succès.")
+    except Exception as e:
+        await message.answer(f"❌ Échec de l'envoi : {e}")
+
 # === Serveur aiohttp pour Render ===
 async def handle(request):
     raw_body = await request.read()
