@@ -169,7 +169,7 @@ async def main():
 
     runner = web.AppRunner(app)
     await runner.setup()
-    site = web.TCPSite(runner, port=10000)
+    site = web.TCPSite(runner, host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
     await site.start()
 
     print(f"🚀 Webhook lancé sur {webhook_url}")
