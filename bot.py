@@ -61,11 +61,6 @@ async def start_handler(message: Message):
     canal_url = "https://t.me/VelocityInvestments"
     first_name = message.from_user.first_name
 
-    webapp_url = "https://velocity-parrainage.onrender.com"
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🚀 Ouvrir l'application", web_app={"url": webapp_url})]
-    ])
-
     await message.answer(
         f"👋 Bienvenue <b>{first_name}</b> !\n\n"
         f"👉 Rejoins le canal Telegram pour valider ton parrainage :\n"
@@ -73,9 +68,9 @@ async def start_handler(message: Message):
         f"Voici ton lien de parrainage 👇\n"
         f"<code>{referral_link}</code>\n\n"
         f"/stats – Voir tes parrainages\n"
-        f"/top – Classement des parrains",
-        reply_markup=keyboard
+        f"/top – Classement des parrains"
     )
+
 
 # === Commande /stats ===
 @router.message(Command("stats"))
